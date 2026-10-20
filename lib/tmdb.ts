@@ -51,18 +51,30 @@ export async function tmdbFetch<T>(
     headers['Authorization'] = `Bearer ${tokenToUse}`;
   }
 
-  const res = await fetch(url.toString(), {
-    headers,
-    next: { revalidate: 60 },
-  });
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url.toString(), {
+        headers,
+        next: { revalidate: 60 },
+      });
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`TMDB fetch failed [${res.status}]: ${errorText}`);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`TMDB fetch failed [${res.status}]: ${errorText}`);
+      }
+
+      const data = (await res.json()) as T;
+      cache.set(cacheKey, { data, timestamp: now });
+
+      return data;
+    } catch (err) {
+      lastError = err;
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+      }
+    }
   }
 
-  const data = (await res.json()) as T;
-  cache.set(cacheKey, { data, timestamp: now });
-
-  return data;
+  throw lastError;
 }
