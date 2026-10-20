@@ -93,3 +93,21 @@ export interface TMDBPaginatedResponse<T> {
   total_pages: number;
   total_results: number;
 }
+
+export interface RailItem {
+  id: number;
+  media_type: "movie" | "tv";
+  title: string;
+  year: string;
+  poster_path: string;
+  backdrop_path?: string | null;
+  vote_average: number;
+  genre_ids?: number[];
+  overview?: string;
+}
+
+export interface RailData {
+  title: string;
+  items: RailItem[];
+}
+
