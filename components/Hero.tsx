@@ -6,12 +6,14 @@ import { motion } from 'framer-motion';
 import { Star } from 'lucide-react';
 import { RailItem } from '@/lib/types';
 import { IMG_BASE } from '@/lib/tmdb';
+import { useCompareStore } from '@/store/compareStore';
 
 interface HeroProps {
   items: RailItem[];
 }
 
 export default function Hero({ items }: HeroProps) {
+  const addItem = useCompareStore((state) => state.addItem);
   const slides = items.slice(0, 5);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -107,7 +109,14 @@ export default function Hero({ items }: HeroProps) {
 
             <button
               type="button"
-              onClick={() => console.log('compare', currentItem.id, currentItem.title)}
+              onClick={() =>
+                addItem({
+                  id: currentItem.id,
+                  media_type: currentItem.media_type,
+                  title: currentItem.title,
+                  poster_path: currentItem.poster_path,
+                })
+              }
               className="border border-[#f5a524] text-[#f5a524] hover:bg-[#f5a524]/10 rounded-full px-6 py-3 transition-colors text-sm font-semibold"
             >
               + Compare

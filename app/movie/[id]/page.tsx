@@ -13,6 +13,7 @@ import TrailerModal from '@/components/TrailerModal';
 import Rail from '@/components/Rail';
 import { IMG_BASE } from '@/lib/tmdb';
 import { PosterCardProps } from '@/components/PosterCard';
+import { useCompareStore } from '@/store/compareStore';
 
 interface DetailsResponse {
   details: {
@@ -68,6 +69,7 @@ export default function MovieDetailsPage() {
   const params = useParams();
   const id = params?.id as string;
   const [trailerOpen, setTrailerOpen] = useState(false);
+  const addItem = useCompareStore((state) => state.addItem);
 
   const { data, isLoading, isError } = useQuery<DetailsResponse>({
     queryKey: ['details', 'movie', id],
@@ -367,7 +369,14 @@ export default function MovieDetailsPage() {
         {/* + Compare Button */}
         <button
           type="button"
-          onClick={() => console.log('compare', details.id, details.title)}
+          onClick={() =>
+            addItem({
+              id: details.id,
+              media_type: 'movie',
+              title: details.title,
+              poster_path: details.poster_path || '',
+            })
+          }
           className="flex items-center gap-2 px-6 py-3 rounded-full border border-[#f5a524] text-[#f5a524] hover:bg-[#f5a524]/10 transition-colors text-sm font-semibold"
         >
           <Plus className="w-4 h-4" />

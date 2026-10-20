@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Film, Search, X } from 'lucide-react';
+import { useCompareStore } from '@/store/compareStore';
 
 interface NavItem {
   name: string;
@@ -17,16 +18,19 @@ const navItems: NavItem[] = [
   { name: 'Movies', href: '/movies' },
   { name: 'Series', href: '/series' },
   { name: 'In Theatres', href: '/theatres' },
-  { name: 'Compare', href: '/compare', badge: 0 },
+  { name: 'Compare', href: '/compare' },
 ];
 
 export default function Navbar() {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const compareCount = useCompareStore((state) => state.items.length);
 
   useEffect(() => {
+    setMounted(true);
     const handleScroll = () => {
       if (window.scrollY > 100) {
         setScrolled(true);
@@ -80,6 +84,13 @@ export default function Navbar() {
                 ? pathname === '/'
                 : pathname.startsWith(item.href);
 
+            const dynamicBadge =
+              item.href === '/compare'
+                ? mounted
+                  ? compareCount
+                  : 0
+                : item.badge || 0;
+
             return (
               <Link
                 key={item.href}
@@ -100,9 +111,9 @@ export default function Navbar() {
                   />
                 )}
                 <span>{item.name}</span>
-                {item.badge !== undefined && (
+                {dynamicBadge > 0 && (
                   <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#f5a524] text-[#07070b] leading-none">
-                    {item.badge}
+                    {dynamicBadge}
                   </span>
                 )}
               </Link>

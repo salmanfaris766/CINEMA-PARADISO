@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Star } from 'lucide-react';
 import { IMG_BASE } from '@/lib/tmdb';
+import { useCompareStore } from '@/store/compareStore';
 
 export interface PosterCardProps {
   id: number;
@@ -26,6 +27,7 @@ export default function PosterCard({
   poster_path,
   vote_average,
 }: PosterCardProps) {
+  const addItem = useCompareStore((state) => state.addItem);
   const imageUrl = `${IMG_BASE}/w500${poster_path}`;
   const targetHref = `/${media_type}/${id}`;
 
@@ -66,7 +68,7 @@ export default function PosterCard({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('compare', id, title);
+            addItem({ id, media_type, title, poster_path });
           }}
           className="text-[11px] border border-[#f5a524]/60 text-[#f5a524] hover:bg-[#f5a524]/20 hover:border-[#f5a524] rounded-full px-2.5 py-0.5 mt-2 transition-colors w-fit font-medium"
         >

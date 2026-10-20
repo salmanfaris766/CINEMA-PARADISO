@@ -3,6 +3,7 @@ import { Inter, Playfair_Display } from 'next/font/google';
 import Providers from './Providers';
 import SmoothScroll from '@/components/SmoothScroll';
 import Navbar from '@/components/Navbar';
+import CompareTray from '@/components/CompareTray';
 import './globals.css';
 
 const inter = Inter({
@@ -57,6 +58,7 @@ export default function RootLayout({
             <main className="min-h-screen pt-[100px] max-w-[1600px] mx-auto px-6">
               {children}
             </main>
+            <CompareTray />
           </SmoothScroll>
         </Providers>
       </body>
