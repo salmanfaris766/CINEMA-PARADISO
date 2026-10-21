@@ -11,6 +11,7 @@ import CastScroller from '@/components/CastScroller';
 import ProviderList from '@/components/ProviderList';
 import TrailerModal from '@/components/TrailerModal';
 import Rail from '@/components/Rail';
+import PageTransition from '@/components/PageTransition';
 import { IMG_BASE } from '@/lib/tmdb';
 import { PosterCardProps } from '@/components/PosterCard';
 import { useCompareStore } from '@/store/compareStore';
@@ -171,7 +172,7 @@ export default function TvDetailsPage() {
   ];
 
   return (
-    <div className="w-full pb-16">
+    <PageTransition className="w-full pb-16">
       {/* a. HEADER SECTION */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
@@ -482,6 +483,6 @@ export default function TvDetailsPage() {
         isOpen={trailerOpen}
         onClose={() => setTrailerOpen(false)}
       />
-    </div>
+    </PageTransition>
   );
 }

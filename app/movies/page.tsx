@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import FilterBar from '@/components/FilterBar';
 import PosterGrid from '@/components/PosterGrid';
+import PageTransition from '@/components/PageTransition';
 import { useFilterStore } from '@/store/filterStore';
 import { PosterCardProps } from '@/components/PosterCard';
 
@@ -111,7 +112,7 @@ function MoviesContent() {
   const hasMore = page < totalPages && accumulatedItems.length < totalResults;
 
   return (
-    <div className="w-full pb-16">
+    <PageTransition className="w-full pb-16">
       {/* Page Heading */}
       <h1
         className="text-4xl md:text-5xl font-bold text-[#f4f4f5] tracking-tight mb-6"
@@ -145,7 +146,7 @@ function MoviesContent() {
         onLoadMore={() => setPage(page + 1)}
         totalCount={totalResults}
       />
-    </div>
+    </PageTransition>
   );
 }
 

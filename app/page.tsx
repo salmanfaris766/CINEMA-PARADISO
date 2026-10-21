@@ -8,6 +8,7 @@ import { ArrowRight, RotateCcw } from 'lucide-react';
 import Hero from '@/components/Hero';
 import Rail from '@/components/Rail';
 import { HeroSkeleton, RailSkeleton } from '@/components/Skeletons';
+import PageTransition from '@/components/PageTransition';
 import { RailData } from '@/lib/types';
 
 interface RailsApiResponse {
@@ -70,7 +71,7 @@ export default function HomePage() {
   const heroItems = rails[0]?.items || [];
 
   return (
-    <div className="w-full pb-16">
+    <PageTransition className="w-full pb-16">
       {/* Hero Banner (First rail's top items) */}
       {heroItems.length > 0 && <Hero items={heroItems} />}
 
@@ -107,6 +108,6 @@ export default function HomePage() {
           <ArrowRight className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1.5" />
         </Link>
       </div>
-    </div>
+    </PageTransition>
   );
 }

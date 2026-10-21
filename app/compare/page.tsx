@@ -7,6 +7,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { Film, Sparkles, Layers } from 'lucide-react';
 import { useCompareStore } from '@/store/compareStore';
 import CompareTable, { CompareTableItem } from '@/components/CompareTable';
+import PageTransition from '@/components/PageTransition';
 
 export default function ComparePage() {
   const router = useRouter();
@@ -151,7 +152,7 @@ export default function ComparePage() {
   }
 
   return (
-    <div className="w-full pb-24">
+    <PageTransition className="w-full pb-24">
       {/* a. Page Heading */}
       <h1
         className="text-4xl font-bold text-[#f4f4f5] mb-2"
@@ -213,6 +214,6 @@ export default function ComparePage() {
           ) : null}
         </div>
       )}
-    </div>
+    </PageTransition>
   );
 }

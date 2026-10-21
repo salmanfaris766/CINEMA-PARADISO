@@ -75,8 +75,9 @@ export default function Hero({ items }: HeroProps) {
         >
           {/* Title */}
           <h1
-            className="text-4xl md:text-5xl font-bold text-[#f4f4f5] leading-tight tracking-tight drop-shadow-md"
+            className="text-4xl md:text-5xl font-bold text-[#f4f4f5] leading-tight tracking-tight drop-shadow-md line-clamp-2"
             style={{ fontFamily: 'var(--font-display), serif' }}
+            title={currentItem.title}
           >
             {currentItem.title}
           </h1>
