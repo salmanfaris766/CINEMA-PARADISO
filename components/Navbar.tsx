@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Film, Search, X, Loader2, Menu } from 'lucide-react';
+import { Film, Search, X, Loader2, Menu, Sparkles } from 'lucide-react';
 import { useCompareStore } from '@/store/compareStore';
 import { IMG_BASE } from '@/lib/tmdb';
 
@@ -29,6 +29,7 @@ const navItems: NavItem[] = [
   { name: 'Movies', href: '/movies' },
   { name: 'Series', href: '/series' },
   { name: 'In Theatres', href: '/theatres' },
+  { name: 'Film Finder', href: '/film-finder' },
   { name: 'Compare', href: '/compare' },
 ];
 
@@ -222,6 +223,9 @@ export default function Navbar() {
                     }}
                   />
                 )}
+                {item.href === '/film-finder' && (
+                  <Sparkles className="w-3.5 h-3.5 text-[#f5a524] mr-1.5 shrink-0" />
+                )}
                 <span>{item.name}</span>
                 {dynamicBadge > 0 && (
                   <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#f5a524] text-[#07070b] leading-none">
@@ -403,7 +407,12 @@ export default function Navbar() {
                       : 'text-[#a1a1aa] hover:text-[#f4f4f5] hover:bg-white/5'
                   }`}
                 >
-                  <span>{item.name}</span>
+                  <div className="flex items-center gap-2">
+                    {item.href === '/film-finder' && (
+                      <Sparkles className="w-4 h-4 text-[#f5a524] shrink-0" />
+                    )}
+                    <span>{item.name}</span>
+                  </div>
                   {dynamicBadge > 0 && (
                     <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#f5a524] text-[#07070b]">
                       {dynamicBadge}

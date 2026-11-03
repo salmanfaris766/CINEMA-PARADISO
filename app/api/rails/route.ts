@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { tmdbFetch } from '@/lib/tmdb';
 import { RailData, RailItem, TMDBPaginatedResponse } from '@/lib/types';
+import { RAJINI_CLASSICS_IDS, KAMAL_CLASSICS_IDS } from '@/lib/tmdb-curated';
 
 interface RawTMDBItem {
   id: number;
@@ -12,6 +13,7 @@ interface RawTMDBItem {
   backdrop_path?: string | null;
   vote_average: number;
   genre_ids?: number[];
+  genres?: { id: number; name: string }[];
   overview?: string;
   media_type?: string;
 }
@@ -33,6 +35,7 @@ function mapRailItems(
 
       const dateStr = item.release_date || item.first_air_date || '';
       const year = dateStr ? dateStr.substring(0, 4) : '';
+      const genre_ids = item.genre_ids || item.genres?.map((g) => g.id) || [];
 
       return {
         id: item.id,
@@ -42,7 +45,7 @@ function mapRailItems(
         poster_path: item.poster_path,
         backdrop_path: item.backdrop_path || null,
         vote_average: Number((item.vote_average || 0).toFixed(1)),
-        genre_ids: item.genre_ids || [],
+        genre_ids,
         overview: item.overview || '',
       };
     });
@@ -82,6 +85,32 @@ export async function GET() {
       }
     };
 
+    const fetchCuratedRail = async (
+      title: string,
+      ids: number[],
+      defaultMediaType: 'movie' | 'tv' = 'movie'
+    ): Promise<RailData> => {
+      try {
+        const fetchedItems = await Promise.all(
+          ids.map(async (id) => {
+            try {
+              return await tmdbFetch<RawTMDBItem>(`/${defaultMediaType}/${id}`, { language: 'en-US' });
+            } catch {
+              return null;
+            }
+          })
+        );
+        const validItems = fetchedItems.filter((item): item is RawTMDBItem => Boolean(item));
+        return {
+          title,
+          items: mapRailItems(validItems, defaultMediaType),
+        };
+      } catch (err) {
+        console.error(`Failed to fetch curated rail "${title}":`, err);
+        return { title, items: [] };
+      }
+    };
+
     const [
       trending,
       mysteryThriller,
@@ -90,7 +119,15 @@ export async function GET() {
       nowInTheatres,
       bingeSeries,
       hiddenGems,
+      rajiniClassics,
+      kamalClassics,
+      tamilHits2000s,
+      tamilGoldenEra,
+      netflixOriginals,
+      primeVideoHits,
+      allTimeSitcoms,
     ] = await Promise.all([
+      // Existing 7 rails (unchanged)
       fetchRail('Trending This Week', '/trending/movie/week', { language: 'en-US' }, 'movie'),
       fetchRail(
         'Top Rated Mystery & Thriller',
@@ -145,6 +182,69 @@ export async function GET() {
         },
         'movie'
       ),
+
+      // New rails (additive)
+      fetchCuratedRail('Rajinikanth Classics', RAJINI_CLASSICS_IDS, 'movie'),
+      fetchCuratedRail('Kamal Haasan Essentials', KAMAL_CLASSICS_IDS, 'movie'),
+      fetchRail(
+        'Tamil Hits 2000s-2020s',
+        '/discover/movie',
+        {
+          with_original_language: 'ta',
+          sort_by: 'popularity.desc',
+          'vote_count.gte': '20', // Lower threshold for Tamil to catch more titles
+          'primary_release_date.gte': '2000-01-01',
+          language: 'en-US',
+        },
+        'movie'
+      ),
+      fetchRail(
+        'Tamil Golden Era',
+        '/discover/movie',
+        {
+          with_original_language: 'ta',
+          sort_by: 'vote_average.desc',
+          'vote_count.gte': '10', // Low threshold for vintage classics
+          'primary_release_date.gte': '1980-01-01',
+          'primary_release_date.lte': '1999-12-31',
+          language: 'en-US',
+        },
+        'movie'
+      ),
+      fetchRail(
+        'Netflix Originals',
+        '/discover/tv',
+        {
+          with_networks: '213',
+          sort_by: 'popularity.desc',
+          'vote_count.gte': '100',
+          language: 'en-US',
+        },
+        'tv'
+      ),
+      fetchRail(
+        'Prime Video Hits',
+        '/discover/tv',
+        {
+          with_networks: '1024',
+          sort_by: 'popularity.desc',
+          'vote_count.gte': '100',
+          language: 'en-US',
+        },
+        'tv'
+      ),
+      fetchRail(
+        'All-Time Sitcoms',
+        '/discover/tv',
+        {
+          with_genres: '35',
+          with_original_language: 'en',
+          sort_by: 'vote_average.desc',
+          'vote_count.gte': '500',
+          language: 'en-US',
+        },
+        'tv'
+      ),
     ]);
 
     const rails: RailData[] = [
@@ -155,6 +255,13 @@ export async function GET() {
       nowInTheatres,
       bingeSeries,
       hiddenGems,
+      rajiniClassics,
+      kamalClassics,
+      tamilHits2000s,
+      tamilGoldenEra,
+      netflixOriginals,
+      primeVideoHits,
+      allTimeSitcoms,
     ];
 
     // If all rails returned empty (e.g. offline/network blocked), fallback to preserve user experience

@@ -34,20 +34,52 @@ export async function GET(request: NextRequest) {
     let sortBy = searchParams.get('sort_by') || 'popularity.desc';
     const page = searchParams.get('page') || '1';
 
+    // New additive filter parameters
+    const network = searchParams.get('network');
+    const minRuntime = searchParams.get('min_runtime');
+    const maxRuntime = searchParams.get('max_runtime');
+    const minEpisodes = searchParams.get('min_episodes');
+    const maxEpisodes = searchParams.get('max_episodes');
+    const isSitcom = searchParams.get('sitcom') === 'true';
+    const includeClassics = searchParams.get('include_classics') === 'true';
+
     // Map release_date.desc for TV if needed
     if (mediaType === 'tv' && sortBy.startsWith('release_date')) {
       sortBy = sortBy.replace('release_date', 'first_air_date');
     }
 
+    // Determine quality gate for vote count:
+    // When language is Tamil ('ta'), we automatically lower the vote count threshold to 20 (instead of 100)
+    // to surface significantly more regional Tamil titles that have smaller global voter pools on TMDB.
+    // If include_classics is explicitly requested, we lower it to 10 for vintage titles.
+    let voteCountThreshold = '100';
+    if (language === 'ta') {
+      voteCountThreshold = '20';
+    }
+    if (includeClassics) {
+      voteCountThreshold = '10';
+    }
+
     const params: Record<string, string> = {
       language: 'en-US',
-      'vote_count.gte': '100', // Non-negotiable quality gate
+      'vote_count.gte': voteCountThreshold,
       sort_by: sortBy,
       page,
     };
 
     if (genres && genres.trim()) {
       params['with_genres'] = genres.trim();
+    }
+
+    // Sitcom filter for TV: Ensure comedy genre (35) is included
+    if (isSitcom && mediaType === 'tv') {
+      if (params['with_genres']) {
+        if (!params['with_genres'].includes('35')) {
+          params['with_genres'] = `${params['with_genres']},35`;
+        }
+      } else {
+        params['with_genres'] = '35';
+      }
     }
 
     if (language === 'en') {
@@ -59,9 +91,14 @@ export async function GET(request: NextRequest) {
     if (mediaType === 'movie') {
       if (yearFrom) params['primary_release_date.gte'] = `${yearFrom}-01-01`;
       if (yearTo) params['primary_release_date.lte'] = `${yearTo}-12-31`;
+      if (minRuntime && Number(minRuntime) > 0) params['with_runtime.gte'] = minRuntime.trim();
+      if (maxRuntime && Number(maxRuntime) > 0) params['with_runtime.lte'] = maxRuntime.trim();
     } else {
       if (yearFrom) params['first_air_date.gte'] = `${yearFrom}-01-01`;
       if (yearTo) params['first_air_date.lte'] = `${yearTo}-12-31`;
+      if (network && network.trim()) params['with_networks'] = network.trim();
+      if (minEpisodes && Number(minEpisodes) > 0) params['with_episode_run_time.gte'] = minEpisodes.trim();
+      if (maxEpisodes && Number(maxEpisodes) > 0) params['with_episode_run_time.lte'] = maxEpisodes.trim();
     }
 
     if (minRating && Number(minRating) > 0) {

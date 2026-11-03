@@ -89,10 +89,10 @@ interface RawNowPlaying {
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ type: string; id: string }> | { type: string; id: string } }
+  context: { params: Promise<{ type: string; id: string }> }
 ) {
   try {
-    const resolvedParams = await Promise.resolve(context.params);
+    const resolvedParams = await context.params;
     const { type, id } = resolvedParams;
 
     if (type !== 'movie' && type !== 'tv') {
