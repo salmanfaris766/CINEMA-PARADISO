@@ -15,7 +15,7 @@ export default function PageTransition({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -16 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
       className={className}
     >
       {children}

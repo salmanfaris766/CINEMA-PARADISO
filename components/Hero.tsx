@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Star } from 'lucide-react';
 import { RailItem } from '@/lib/types';
@@ -37,17 +38,26 @@ export default function Hero({ items }: HeroProps) {
       {slides.map((item, idx) => {
         const bgPath = item.backdrop_path || item.poster_path;
         const bgUrl = `${IMG_BASE}/w1280${bgPath}`;
+        const isActive = idx === activeIndex;
 
         return (
           <div
             key={item.id}
-            className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out ${
-              idx === activeIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+              isActive ? 'opacity-100 z-0' : 'opacity-0 pointer-events-none -z-10'
             }`}
-            style={{
-              backgroundImage: `url(${bgUrl})`,
-            }}
-          />
+          >
+            <Image
+              src={bgUrl}
+              alt={item.title}
+              fill
+              priority={isActive}
+              loading={isActive ? 'eager' : 'lazy'}
+              fetchPriority={isActive ? 'high' : 'low'}
+              sizes="100vw"
+              className="object-cover object-center"
+            />
+          </div>
         );
       })}
 
@@ -70,7 +80,7 @@ export default function Hero({ items }: HeroProps) {
           key={currentItem.id}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
           className="flex flex-col"
         >
           {/* Title */}

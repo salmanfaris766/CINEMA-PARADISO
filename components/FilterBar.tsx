@@ -63,7 +63,7 @@ export default function FilterBar({ totalCount = 0 }: FilterBarProps) {
 
   return (
     <div
-      className="sticky top-[80px] z-40 glass rounded-2xl p-4 md:p-5 mb-6 surface transition-all duration-300"
+      className="glass rounded-2xl p-4 md:p-5 mb-6 surface transition-all duration-300"
       style={{
         borderRadius: '16px',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',

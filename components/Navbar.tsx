@@ -28,6 +28,7 @@ const navItems: NavItem[] = [
   { name: 'Home', href: '/' },
   { name: 'Movies', href: '/movies' },
   { name: 'Series', href: '/series' },
+  { name: 'Sitcoms', href: '/sitcoms' },
   { name: 'In Theatres', href: '/theatres' },
   { name: 'Film Finder', href: '/film-finder' },
   { name: 'Compare', href: '/compare' },
@@ -52,15 +53,16 @@ export default function Navbar() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrollYRef = useRef(0);
 
   useEffect(() => {
     setMounted(true);
     const handleScroll = () => {
-      if (window.scrollY > 100) {
-        setScrolled(true);
-      } else {
-        setScrolled(false);
-      }
+      const currentScrollY = window.scrollY;
+      if (Math.abs(currentScrollY - lastScrollYRef.current) < 10) return;
+      lastScrollYRef.current = currentScrollY;
+      const isScrolled = currentScrollY > 100;
+      setScrolled((prev) => (prev !== isScrolled ? isScrolled : prev));
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });

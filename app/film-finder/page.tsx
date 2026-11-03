@@ -63,7 +63,7 @@ export default function FilmFinderPage() {
             initial={{ opacity: 0, x: -25 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -25 }}
-            transition={{ duration: 0.35, ease: 'easeInOut' }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
           >
             <FilmFinderForm onSubmit={handleFormSubmit} isLoading={isLoading} />
           </motion.div>
@@ -73,7 +73,7 @@ export default function FilmFinderPage() {
             initial={{ opacity: 0, x: 25 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 25 }}
-            transition={{ duration: 0.35, ease: 'easeInOut' }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
           >
             <FilmFinderResults
               results={results || []}

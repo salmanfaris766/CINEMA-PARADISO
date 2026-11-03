@@ -111,8 +111,16 @@ export async function GET() {
       }
     };
 
+    // Compute upcoming date range
+    const today = new Date();
+    const in60Days = new Date(today);
+    in60Days.setDate(today.getDate() + 60);
+    const todayStr = today.toISOString().split('T')[0];
+    const in60DaysStr = in60Days.toISOString().split('T')[0];
+
     const [
       trending,
+      comingSoon,
       mysteryThriller,
       tamilBlockbusters,
       hollywoodMustWatch,
@@ -129,6 +137,52 @@ export async function GET() {
     ] = await Promise.all([
       // Existing 7 rails (unchanged)
       fetchRail('Trending This Week', '/trending/movie/week', { language: 'en-US' }, 'movie'),
+      // Coming Soon rail (position 2)
+      (async (): Promise<RailData> => {
+        try {
+          const [usUpcoming, inUpcoming] = await Promise.all([
+            tmdbFetch<TMDBPaginatedResponse<RawTMDBItem>>('/movie/upcoming', { region: 'US', language: 'en-US' }),
+            tmdbFetch<TMDBPaginatedResponse<RawTMDBItem>>('/discover/movie', {
+              with_original_language: 'ta',
+              'primary_release_date.gte': todayStr,
+              'primary_release_date.lte': in60DaysStr,
+              sort_by: 'popularity.desc',
+            }),
+          ]);
+          const allUpcoming = [
+            ...(usUpcoming.results || []),
+            ...(inUpcoming.results || []),
+          ]
+            .filter(
+              (item) =>
+                item.poster_path &&
+                item.release_date &&
+                item.release_date >= todayStr &&
+                item.release_date <= in60DaysStr
+            )
+            .sort((a, b) => (a.release_date || '').localeCompare(b.release_date || ''))
+            .slice(0, 20);
+
+          // Remove duplicates by id
+          const seen = new Set<number>();
+          const unique = allUpcoming.filter((item) => {
+            if (seen.has(item.id)) return false;
+            seen.add(item.id);
+            return true;
+          });
+
+          return {
+            title: 'Coming Soon',
+            items: mapRailItems(unique, 'movie').map((item, idx) => ({
+              ...item,
+              release_date: unique[idx]?.release_date,
+            })),
+          };
+        } catch (err) {
+          console.error('Failed to fetch coming soon rail:', err);
+          return { title: 'Coming Soon', items: [] };
+        }
+      })(),
       fetchRail(
         'Top Rated Mystery & Thriller',
         '/discover/movie',
@@ -249,6 +303,7 @@ export async function GET() {
 
     const rails: RailData[] = [
       trending,
+      comingSoon,
       mysteryThriller,
       tamilBlockbusters,
       hollywoodMustWatch,

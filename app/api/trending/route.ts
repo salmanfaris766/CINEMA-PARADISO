@@ -183,7 +183,8 @@ export async function GET() {
 
     const data = await tmdbFetch<TMDBPaginatedResponse<TMDBMovie>>(
       '/trending/movie/week',
-      { language: 'en-US' }
+      { language: 'en-US' },
+      { revalidate: 300 }
     );
 
     const mapped = (data.results || [])
@@ -198,7 +199,11 @@ export async function GET() {
         vote_count: movie.vote_count,
       }));
 
-    return NextResponse.json(mapped);
+    return NextResponse.json(mapped, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60',
+      },
+    });
   } catch (error) {
     console.error('Error in /api/trending route:', error);
     return NextResponse.json(FALLBACK_TRENDING);

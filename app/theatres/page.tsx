@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Star, Ticket, Film } from 'lucide-react';
+import { Star, Film, Calendar } from 'lucide-react';
 import PageTransition from '@/components/PageTransition';
 import { IMG_BASE } from '@/lib/tmdb';
 import { useCompareStore } from '@/store/compareStore';
@@ -20,8 +20,22 @@ interface TheatreMovie {
   release_date: string;
 }
 
-const BLUR_PIXEL =
-  'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AKwA//9k=';
+interface UpcomingMovie {
+  id: number;
+  media_type: 'movie';
+  title: string;
+  year: string;
+  poster_path: string;
+  vote_average: number;
+  release_date: string;
+  overview: string;
+  original_language: string;
+}
+
+interface UpcomingApiResponse {
+  hollywood: UpcomingMovie[];
+  tamil: UpcomingMovie[];
+}
 
 export default function TheatresPage() {
   const addItem = useCompareStore((state) => state.addItem);
@@ -36,7 +50,38 @@ export default function TheatresPage() {
     staleTime: 21600 * 1000,
   });
 
+  const { data: upcomingData, isLoading: upcomingLoading } = useQuery<UpcomingApiResponse>({
+    queryKey: ['upcoming'],
+    queryFn: async () => {
+      const res = await fetch('/api/upcoming');
+      if (!res.ok) throw new Error('Failed to fetch upcoming movies');
+      return res.json();
+    },
+    staleTime: 3600 * 1000,
+  });
+
   const movies = data?.results || [];
+
+  // Merge and sort upcoming movies by release_date
+  const upcomingMovies = React.useMemo(() => {
+    if (!upcomingData) return [];
+    const combined = [...(upcomingData.hollywood || []), ...(upcomingData.tamil || [])];
+    // Deduplicate by id
+    const seen = new Set<number>();
+    return combined
+      .filter((m) => {
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      })
+      .sort((a, b) => (a.release_date || '').localeCompare(b.release_date || ''));
+  }, [upcomingData]);
+
+  const formatReleaseDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
 
   return (
     <PageTransition className="w-full pb-24">
@@ -101,9 +146,6 @@ export default function TheatresPage() {
         >
           {movies.map((movie) => {
             const imageUrl = `${IMG_BASE}/w500${movie.poster_path}`;
-            const bmsUrl = `https://in.bookmyshow.com/search/movies/${encodeURIComponent(
-              movie.title
-            )}`;
 
             return (
               <motion.div
@@ -127,9 +169,8 @@ export default function TheatresPage() {
                       src={imageUrl}
                       alt={movie.title}
                       fill
+                      loading="lazy"
                       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 15vw"
-                      placeholder="blur"
-                      blurDataURL={BLUR_PIXEL}
                       className="object-cover transition-transform duration-300 ease-out group-hover/card:scale-105"
                     />
 
@@ -172,22 +213,123 @@ export default function TheatresPage() {
                     </div>
                   </Link>
                 </div>
-
-                {/* Book on BookMyShow Button */}
-                <a
-                  href={bmsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2.5 w-full border border-green-500/50 text-green-400 hover:bg-green-500/15 hover:border-green-500 rounded-full py-1.5 px-3 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-[0_0_12px_rgba(34,197,94,0.1)] hover:shadow-[0_0_15px_rgba(34,197,94,0.25)]"
-                >
-                  <Ticket className="w-3.5 h-3.5" />
-                  <span>Book on BookMyShow</span>
-                </a>
               </motion.div>
             );
           })}
         </motion.div>
       )}
+
+      {/* Coming Soon to Theatres Section */}
+      <div className="mt-16">
+        <h2
+          className="text-3xl font-bold text-[#f4f4f5] mb-2 tracking-tight"
+          style={{ fontFamily: 'var(--font-display), serif' }}
+        >
+          Coming Soon to Theatres
+        </h2>
+        <p className="text-secondary mb-8">Releasing in the next 2 months</p>
+
+        {upcomingLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex flex-col gap-2 animate-pulse">
+                <div className="w-full aspect-[2/3] rounded-xl surface shimmer" />
+                <div className="h-4 w-3/4 rounded surface shimmer" />
+              </div>
+            ))}
+          </div>
+        ) : upcomingMovies.length === 0 ? (
+          <div className="glass rounded-2xl p-8 text-center border border-white/10">
+            <Calendar className="w-8 h-8 text-[#f5a524] mx-auto mb-3 opacity-70" />
+            <p className="text-secondary text-sm">No upcoming releases found for the next 60 days.</p>
+          </div>
+        ) : (
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: { opacity: 0 },
+              show: { opacity: 1, transition: { staggerChildren: 0.04 } },
+            }}
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8 gap-4"
+          >
+            {upcomingMovies.map((movie) => {
+              const imageUrl = `${IMG_BASE}/w500${movie.poster_path}`;
+              const isHindi = movie.original_language === 'hi';
+              const isTamil = movie.original_language === 'ta';
+              const langLabel = isTamil ? 'Tamil' : isHindi ? 'Hindi' : null;
+
+              return (
+                <motion.div
+                  key={movie.id}
+                  variants={{
+                    hidden: { opacity: 0, y: 16 },
+                    show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
+                  }}
+                  className="flex flex-col group/card"
+                >
+                  <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-[#0d0d14] border border-white/5 hover:shadow-[0_0_24px_rgba(245,165,36,0.2)] transition-shadow duration-300">
+                    {/* Coming Soon Badge */}
+                    <span className="absolute top-2 right-2 bg-[#f5a524]/90 backdrop-blur-sm text-[#07070b] text-[11px] px-2 py-0.5 rounded-full font-bold z-20 shadow-md">
+                      Coming Soon
+                    </span>
+
+                    {/* Language badge */}
+                    {langLabel && (
+                      <span className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full font-medium z-20 border border-white/10">
+                        {langLabel}
+                      </span>
+                    )}
+
+                    <Link href={`/movie/${movie.id}`} className="block w-full h-full">
+                      <Image
+                        src={imageUrl}
+                        alt={movie.title}
+                        fill
+                        loading="lazy"
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 15vw"
+                        className="object-cover transition-transform duration-300 ease-out group-hover/card:scale-105"
+                      />
+
+                      {/* Hover Overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 p-3 glass translate-y-full group-hover/card:translate-y-0 transition-transform duration-300 ease-out flex flex-col z-10">
+                        <h4 className="text-sm font-semibold truncate text-[#f4f4f5]" title={movie.title}>
+                          {movie.title}
+                        </h4>
+                        <div className="flex items-center gap-1 text-xs text-[#a1a1aa] mt-0.5">
+                          <Calendar className="w-3 h-3 text-[#f5a524]" />
+                          <span>{formatReleaseDate(movie.release_date)}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            addItem({
+                              id: movie.id,
+                              media_type: 'movie',
+                              title: movie.title,
+                              poster_path: movie.poster_path,
+                            });
+                          }}
+                          className="text-[11px] border border-[#f5a524]/60 text-[#f5a524] hover:bg-[#f5a524]/20 hover:border-[#f5a524] rounded-full px-2.5 py-0.5 mt-2 transition-colors w-fit font-medium"
+                        >
+                          + Compare
+                        </button>
+                      </div>
+                    </Link>
+                  </div>
+
+                  {/* Release date below card */}
+                  <p className="text-[11px] text-[#71717a] mt-1.5 text-center truncate">
+                    {formatReleaseDate(movie.release_date)}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
+      </div>
     </PageTransition>
   );
 }

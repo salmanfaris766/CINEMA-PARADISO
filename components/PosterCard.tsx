@@ -14,10 +14,8 @@ export interface PosterCardProps {
   year: string;
   poster_path: string;
   vote_average: number;
+  release_date?: string;
 }
-
-const BLUR_PIXEL =
-  'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AKwA//9k=';
 
 export default function PosterCard({
   id,
@@ -26,10 +24,18 @@ export default function PosterCard({
   year,
   poster_path,
   vote_average,
+  release_date,
 }: PosterCardProps) {
   const addItem = useCompareStore((state) => state.addItem);
   const imageUrl = `${IMG_BASE}/w500${poster_path}`;
   const targetHref = `/${media_type}/${id}`;
+
+  const formattedRelease = React.useMemo(() => {
+    if (!release_date) return null;
+    const d = new Date(release_date);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }, [release_date]);
 
   return (
     <Link
@@ -37,14 +43,20 @@ export default function PosterCard({
       className="group relative block aspect-[2/3] w-full rounded-xl overflow-hidden cursor-pointer bg-[#0d0d14] transition-shadow duration-300 ease-out hover:shadow-[0_0_30px_rgba(245,165,36,0.3)]"
       style={{ borderRadius: '12px' }}
     >
+      {/* Optional Release Date Badge */}
+      {formattedRelease && (
+        <span className="absolute top-2 right-2 glass text-[#f5a524] text-[11px] font-bold px-2 py-0.5 rounded-full z-10 border border-[#f5a524]/30 shadow-md">
+          {formattedRelease}
+        </span>
+      )}
+
       {/* Poster Image */}
       <Image
         src={imageUrl}
         alt={title}
         fill
-        sizes="200px"
-        placeholder="blur"
-        blurDataURL={BLUR_PIXEL}
+        loading="lazy"
+        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
         className="object-cover transition-transform duration-250 ease-out group-hover:scale-105"
       />
 

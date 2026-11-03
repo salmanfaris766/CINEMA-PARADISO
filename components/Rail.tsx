@@ -78,7 +78,7 @@ export default function Rail({ title, items }: RailProps) {
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
+        transition={{ duration: 0.3 }}
         className="relative mb-12 group/rail"
       >
         {/* Header Row */}

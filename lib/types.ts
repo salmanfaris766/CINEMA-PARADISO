@@ -104,6 +104,7 @@ export interface RailItem {
   vote_average: number;
   genre_ids?: number[];
   overview?: string;
+  release_date?: string;
 }
 
 export interface RailData {

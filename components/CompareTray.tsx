@@ -8,7 +8,7 @@ import { X } from 'lucide-react';
 import { useCompareStore } from '@/store/compareStore';
 import { IMG_BASE } from '@/lib/tmdb';
 
-export default function CompareTray() {
+function CompareTrayComponent() {
   const [mounted, setMounted] = useState(false);
   const items = useCompareStore((state) => state.items);
   const removeItem = useCompareStore((state) => state.removeItem);
@@ -98,3 +98,6 @@ export default function CompareTray() {
     </AnimatePresence>
   );
 }
+
+const CompareTray = React.memo(CompareTrayComponent);
+export default CompareTray;

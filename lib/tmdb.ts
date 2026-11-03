@@ -10,7 +10,8 @@ const CACHE_TTL_MS = 60 * 1000; // 60 seconds TTL
 
 export async function tmdbFetch<T>(
   endpoint: string,
-  params: Record<string, string> = {}
+  params: Record<string, string> = {},
+  options?: { revalidate?: number }
 ): Promise<T> {
   const apiKey = process.env.TMDB_API_KEY;
   const readToken = process.env.TMDB_READ_ACCESS_TOKEN;
@@ -35,11 +36,14 @@ export async function tmdbFetch<T>(
     }
   }
 
+  const revalidateSecs = options?.revalidate ?? 3600;
+  const cacheTtlMs = revalidateSecs * 1000;
+
   const cacheKey = url.toString();
   const cached = cache.get(cacheKey);
   const now = Date.now();
 
-  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+  if (cached && now - cached.timestamp < cacheTtlMs) {
     return cached.data as T;
   }
 
@@ -56,7 +60,7 @@ export async function tmdbFetch<T>(
     try {
       const res = await fetch(url.toString(), {
         headers,
-        next: { revalidate: 60 },
+        next: { revalidate: revalidateSecs },
       });
 
       if (!res.ok) {

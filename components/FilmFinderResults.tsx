@@ -5,9 +5,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Star, Loader2, Sparkles, ArrowRight, RotateCcw } from 'lucide-react';
+import { Star, Sparkles, ArrowRight, RotateCcw } from 'lucide-react';
 import { IMG_BASE } from '@/lib/tmdb';
 import { useCompareStore } from '@/store/compareStore';
+import FilmLoader from '@/components/FilmLoader';
 
 export interface FilmFinderResultItem {
   id: number;
@@ -67,8 +68,8 @@ export default function FilmFinderResults({
           className="glass rounded-3xl p-12 max-w-md w-full border border-white/10 shadow-[0_16px_50px_rgba(0,0,0,0.6)] flex flex-col items-center"
         >
           <div className="relative flex items-center justify-center mb-6">
-            <Loader2 className="w-12 h-12 text-[#f5a524] animate-spin" />
-            <Sparkles className="w-5 h-5 text-[#f5a524] absolute" />
+            <FilmLoader size="lg" label="" />
+            <Sparkles className="w-5 h-5 text-[#f5a524] absolute bottom-0 right-0" />
           </div>
           <h2
             className="text-2xl font-bold text-[#f4f4f5] tracking-tight"

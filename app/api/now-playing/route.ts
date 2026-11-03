@@ -18,11 +18,15 @@ interface NowPlayingResponse {
 
 export async function GET() {
   try {
-    const data = await tmdbFetch<NowPlayingResponse>('/movie/now_playing', {
-      region: 'IN',
-      language: 'en-US',
-      page: '1',
-    });
+    const data = await tmdbFetch<NowPlayingResponse>(
+      '/movie/now_playing',
+      {
+        region: 'IN',
+        language: 'en-US',
+        page: '1',
+      },
+      { revalidate: 3600 }
+    );
 
     const results = (data.results || [])
       .filter((movie) => Boolean(movie.poster_path))
@@ -40,7 +44,7 @@ export async function GET() {
       { results },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=21600, stale-while-revalidate=3600',
+          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=600',
         },
       }
     );

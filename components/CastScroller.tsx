@@ -55,6 +55,8 @@ export default function CastScroller({ cast }: CastScrollerProps) {
                   alt={person.name}
                   width={80}
                   height={80}
+                  loading="lazy"
+                  sizes="80px"
                   className="w-full h-full object-cover"
                 />
               ) : (
