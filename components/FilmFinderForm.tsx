@@ -386,3 +386,4 @@ export default function FilmFinderForm({ onSubmit, isLoading }: FilmFinderFormPr
     </div>
   );
 }
+
