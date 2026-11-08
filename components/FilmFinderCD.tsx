@@ -1,14 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import Image from 'next/image';
 import {
   motion,
   useAnimationFrame,
   useMotionValue,
   useReducedMotion,
-  useTransform,
-  type MotionValue,
 } from 'framer-motion';
 import {
   ChevronLeft,
@@ -47,14 +44,19 @@ export interface FilmFinderCDProps {
 const mod = (n: number, m: number) => ((n % m) + m) % m;
 const DEGREES_PER_MS = 0.016; // One smooth revolution ≈ 22s at 1×
 
+function truncateTitle(title: string, max = 15): string {
+  if (!title) return '';
+  return title.length > max ? title.slice(0, max - 1) + '…' : title;
+}
+
 export default function FilmFinderCD({
   results,
   onAddToCompare,
   onViewDetails,
 }: FilmFinderCDProps) {
-  // Use up to 8 items for the 8 radial poster slots on the disc (45° intervals)
+  // Use up to 10 recommended titles to create the exact radial sectors as in the reference image
   const displayMovies = React.useMemo(() => {
-    return results && results.length > 0 ? results.slice(0, 8) : [];
+    return results && results.length > 0 ? results.slice(0, 10) : [];
   }, [results]);
 
   const totalSlots = Math.max(displayMovies.length, 1);
@@ -75,7 +77,7 @@ export default function FilmFinderCD({
   speedRef.current = speed;
   const idxRef = useRef(0);
 
-  // Speed dial pointer handling
+  // Speed knob dragging handling
   const MIN_SPEED = 0.25;
   const MAX_SPEED = 3;
   const clampSpeed = (s: number) => Math.min(MAX_SPEED, Math.max(MIN_SPEED, s));
@@ -149,7 +151,7 @@ export default function FilmFinderCD({
     const next = mod(angle.get() + delta * DEGREES_PER_MS * speedRef.current, 360);
     angle.set(next);
 
-    // Track index currently positioned at the 12 o'clock marker (angle = 0)
+    // Track index currently positioned under the 12 o'clock marker
     const idx = mod(Math.round(-next / step), displayMovies.length);
     if (idx !== idxRef.current) {
       idxRef.current = idx;
@@ -180,6 +182,22 @@ export default function FilmFinderCD({
       ? [...displayMovies.slice(spinningIdx + 1), ...displayMovies.slice(0, spinningIdx + 1)]
       : [];
 
+  // SVG Geometry Calculation for standard top wedge (centered at 12 o'clock: -90°)
+  const cx = 300;
+  const cy = 300;
+  const rOut = 286;
+  const rIn = 108;
+  const deltaDeg = step / 2; // half-angle of the slice in degrees
+  const startRad = ((-90 - deltaDeg) * Math.PI) / 180;
+  const endRad = ((-90 + deltaDeg) * Math.PI) / 180;
+
+  const pOut1 = { x: cx + rOut * Math.cos(startRad), y: cy + rOut * Math.sin(startRad) };
+  const pOut2 = { x: cx + rOut * Math.cos(endRad), y: cy + rOut * Math.sin(endRad) };
+  const pIn2 = { x: cx + rIn * Math.cos(endRad), y: cy + rIn * Math.sin(endRad) };
+  const pIn1 = { x: cx + rIn * Math.cos(startRad), y: cy + rIn * Math.sin(startRad) };
+
+  const topWedgePath = `M ${pIn1.x.toFixed(2)} ${pIn1.y.toFixed(2)} L ${pOut1.x.toFixed(2)} ${pOut1.y.toFixed(2)} A ${rOut} ${rOut} 0 0 1 ${pOut2.x.toFixed(2)} ${pOut2.y.toFixed(2)} L ${pIn2.x.toFixed(2)} ${pIn2.y.toFixed(2)} A ${rIn} ${rIn} 0 0 0 ${pIn1.x.toFixed(2)} ${pIn1.y.toFixed(2)} Z`;
+
   if (displayMovies.length === 0) {
     return (
       <div className="h-[400px] flex items-center justify-center text-[#a1a1aa]">
@@ -189,7 +207,7 @@ export default function FilmFinderCD({
   }
 
   return (
-    <div className="w-full flex flex-col items-center gap-10 py-6 lg:flex-row lg:items-center lg:justify-center lg:gap-14">
+    <div className="w-full flex flex-col items-center gap-10 py-4 lg:flex-row lg:items-center lg:justify-center lg:gap-14">
       {/* Left/Sidebar: Now-spinning HUD Card */}
       <div
         data-testid="cd-now-spinning-card"
@@ -325,248 +343,309 @@ export default function FilmFinderCD({
         </div>
       </div>
 
-      {/* Right: Giant Physical Media CD Turntable with Embedded Radial Posters */}
-      <div
-        className="relative order-1 aspect-square w-[min(580px,94vw)] lg:order-2 shrink-0 select-none"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        {/* 12 o'clock Triangle Pointer (Matching the reference design) */}
-        <div className="absolute left-1/2 top-[-20px] z-30 flex -translate-x-1/2 flex-col items-center pointer-events-none">
-          <svg
-            width="20"
-            height="18"
-            viewBox="0 0 20 18"
-            fill="none"
-            className="drop-shadow-[0_0_10px_rgba(255,255,255,0.85)] filter"
-          >
-            <path d="M10 18L0.47372 1.5L19.5263 1.5L10 18Z" fill="#f4f4f5" />
-          </svg>
-          <span className="h-5 w-[2px] bg-gradient-to-b from-white/90 to-transparent" />
-        </div>
-
-        {/* Ambient radial amber glow around the platter */}
+      {/* Right Column: Rotating Picture-Disc CD (Exact Match to Reference Image) */}
+      <div className="order-1 flex flex-col items-center lg:order-2">
         <div
-          aria-hidden
-          className="absolute -inset-8 rounded-full pointer-events-none bg-[radial-gradient(closest-side,rgba(245,165,36,0.15),transparent)]"
-        />
-
-        {/* Rotating Dark Graphite CD Disc */}
-        <motion.div
-          data-testid="rotating-cd-disc"
-          style={{ rotate: angle }}
-          className="absolute inset-0 overflow-hidden rounded-full bg-[#0a0a10] shadow-[0_30px_90px_rgba(0,0,0,0.98)] ring-1 ring-white/20 border-4 border-[#181822]"
+          className="relative aspect-square w-[min(580px,94vw)] shrink-0 select-none cursor-pointer"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
         >
-          {/* Subtle Concentric Vinyl Micro-Grooves */}
-          <div
-            className="absolute inset-0 rounded-full pointer-events-none"
-            style={{
-              background:
-                'repeating-radial-gradient(circle at 50% 50%, transparent 0, transparent 3px, rgba(255,255,255,0.025) 4px, transparent 5px)',
-            }}
-          />
+          {/* 12 o'clock Triangle Pointer (Matching the Reference Image exactly) */}
+          <div className="absolute left-1/2 top-[-22px] z-30 flex -translate-x-1/2 flex-col items-center pointer-events-none">
+            <svg
+              width="24"
+              height="20"
+              viewBox="0 0 24 20"
+              fill="none"
+              className="drop-shadow-[0_0_12px_rgba(255,255,255,0.9)] filter"
+            >
+              <path d="M12 20L0.5 0.5H23.5L12 20Z" fill="#ffffff" />
+            </svg>
+            <span className="h-4 w-[2px] bg-gradient-to-b from-white/90 to-transparent" />
+          </div>
 
-          {/* Holographic Prismatic Reflection Sheen */}
+          {/* Ambient radial amber glow around the disc */}
           <div
             aria-hidden
-            className="animate-sheen absolute inset-0 rounded-full opacity-35 mix-blend-screen pointer-events-none"
-            style={{
-              background:
-                'conic-gradient(from 0deg at 50% 50%, rgba(245,165,36,0.2) 0deg, rgba(56,189,248,0.18) 60deg, rgba(236,72,153,0.16) 120deg, rgba(168,85,247,0.18) 180deg, rgba(245,165,36,0.2) 240deg, rgba(45,212,191,0.18) 300deg, rgba(245,165,36,0.2) 360deg)',
-            }}
+            className="absolute -inset-8 rounded-full pointer-events-none bg-[radial-gradient(closest-side,rgba(245,165,36,0.14),transparent)]"
           />
 
-          {/* Outer Ring Channel Bed (recessed groove track underneath the posters) */}
-          <div className="absolute inset-[8%] rounded-full border border-white/10 pointer-events-none shadow-[inset_0_2px_12px_rgba(0,0,0,0.8)]" />
+          {/* Outer Chamfer Rim */}
+          <div className="absolute inset-0 rounded-full border-[6px] border-[#161622] shadow-[0_25px_80px_rgba(0,0,0,0.95)] pointer-events-none z-10" />
 
-          {/* 8 Radial Embedded Poster Slots */}
-          {displayMovies.map((item, i) => (
-            <EmbeddedCdSlot
-              key={item.id}
-              item={item}
-              index={i}
-              step={step}
-              angle={angle}
-              isSelected={spinningIdx === i}
-              onSelect={() => selectItem(i)}
-            />
-          ))}
-
-          {/* Inner Ring Separator between posters and spindle */}
-          <div className="absolute inset-[33%] rounded-full border border-white/15 bg-gradient-to-b from-[#101018] to-[#07070b] pointer-events-none shadow-inner" />
-          <div className="absolute inset-[36%] rounded-full border border-white/10 pointer-events-none" />
-        </motion.div>
-
-        {/* Central Spindle Hole & Center Hub (Non-rotating) */}
-        <div className="absolute left-1/2 top-1/2 z-20 flex h-[28%] w-[28%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-full border-2 border-white/20 bg-[#07070b] shadow-[inset_0_3px_15px_rgba(0,0,0,0.98),0_0_25px_rgba(0,0,0,0.8)]">
-          {/* Subtle concentric spindle rings */}
-          <div className="absolute inset-2 rounded-full border border-white/10 pointer-events-none" />
-
-          {/* Center Glowing Yellow/Amber Play/Pause Button */}
-          <button
-            type="button"
-            data-testid="cd-play-toggle-btn"
-            onClick={togglePlay}
-            aria-label={playing ? 'Stop rotation' : 'Start rotation'}
-            className="relative z-10 flex aspect-square h-[42%] cursor-pointer items-center justify-center rounded-full bg-[#f5a524] text-[#07070b] shadow-[0_0_22px_rgba(245,165,36,0.7)] transition-all hover:scale-110 active:scale-95 focus-visible:outline-none"
-            title={playing ? 'Pause disc' : 'Spin disc'}
+          {/* Rotating Vinyl Picture Disc with Wedged Poster Artwork */}
+          <motion.div
+            data-testid="rotating-cd-disc"
+            style={{ rotate: angle }}
+            className="relative w-full h-full rounded-full overflow-hidden bg-[#07070b]"
           >
-            {playing ? (
-              <Square className="h-1/3 w-1/3 fill-current" />
-            ) : (
-              <Play className="h-1/3 w-1/3 fill-current translate-x-[7%]" />
-            )}
-          </button>
-
-          {/* Grooved Speed Dial Knob */}
-          <div
-            ref={knobRef}
-            role="slider"
-            tabIndex={0}
-            data-testid="cd-speed-toggle-btn"
-            aria-label={`Rotation speed ${speed.toFixed(2)}x`}
-            aria-valuemin={MIN_SPEED}
-            aria-valuemax={MAX_SPEED}
-            aria-valuenow={Number(speed.toFixed(2))}
-            onPointerDown={onKnobPointerDown}
-            onPointerMove={onKnobPointerMove}
-            onPointerUp={releaseKnob}
-            onPointerCancel={releaseKnob}
-            onKeyDown={(event) => {
-              if (event.key === 'ArrowUp' || event.key === 'ArrowRight')
-                setSpeed((s) => clampSpeed(s + 0.25));
-              if (event.key === 'ArrowDown' || event.key === 'ArrowLeft')
-                setSpeed((s) => clampSpeed(s - 0.25));
-            }}
-            style={{ touchAction: 'none' }}
-            className="relative aspect-square h-[24%] cursor-grab touch-none rounded-full border border-white/25 bg-[#12121a] shadow-[inset_0_1px_4px_rgba(0,0,0,0.9)] outline-none active:cursor-grabbing hover:border-[#f5a524]/60 transition-colors"
-          >
-            <span
-              aria-hidden
-              className="absolute inset-0 rounded-full"
-              style={{
-                background:
-                  'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.15) 0deg 2deg, transparent 2deg 10deg)',
-              }}
-            />
-            <span
-              aria-hidden
-              className="absolute inset-0"
-              style={{ transform: `rotate(${dialAngle}deg)` }}
+            <svg
+              viewBox="0 0 600 600"
+              className="w-full h-full"
+              xmlns="http://www.w3.org/2000/svg"
             >
-              <span className="absolute left-1/2 top-[8%] h-[38%] w-[2px] -translate-x-1/2 rounded-full bg-[#f5a524] shadow-[0_0_6px_rgba(245,165,36,0.9)]" />
+              <defs>
+                {/* Standard top wedge clip path */}
+                <clipPath id="top-wedge-clip">
+                  <path d={topWedgePath} />
+                </clipPath>
+
+                {/* Shading gradient for each wedge: darkens edges for printed physical media feel */}
+                <linearGradient id="slice-shading" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="rgba(0,0,0,0.55)" />
+                  <stop offset="30%" stopColor="rgba(0,0,0,0.05)" />
+                  <stop offset="70%" stopColor="rgba(0,0,0,0.05)" />
+                  <stop offset="100%" stopColor="rgba(0,0,0,0.65)" />
+                </linearGradient>
+
+                {/* Subtle radial sheen filter */}
+                <radialGradient id="disc-sheen" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="rgba(255,255,255,0)" />
+                  <stop offset="70%" stopColor="rgba(255,255,255,0.03)" />
+                  <stop offset="100%" stopColor="rgba(255,255,255,0.08)" />
+                </radialGradient>
+              </defs>
+
+              {/* Disc base */}
+              <circle cx="300" cy="300" r="290" fill="#0c0d14" />
+
+              {/* Slices: 10 Radial Poster Wedges Fitting the Disc (Like the Reference Image) */}
+              {displayMovies.map((item, i) => {
+                const isSelected = spinningIdx === i;
+                const posterUrl = item.poster_path ? `${IMG_BASE}/w500${item.poster_path}` : null;
+
+                return (
+                  <g
+                    key={item.id}
+                    transform={`rotate(${i * step}, 300, 300)`}
+                    onClick={() => selectItem(i)}
+                    className="cursor-pointer"
+                  >
+                    {/* Clipped Poster Section */}
+                    <g clipPath="url(#top-wedge-clip)">
+                      {posterUrl ? (
+                        <image
+                          href={posterUrl}
+                          x="180"
+                          y="10"
+                          width="240"
+                          height="185"
+                          preserveAspectRatio="xMidYMid slice"
+                          className="transition-transform duration-300"
+                        />
+                      ) : (
+                        <rect x="180" y="10" width="240" height="185" fill="#151622" />
+                      )}
+
+                      {/* Dark edge blending gradient for printed vinyl look */}
+                      <path d={topWedgePath} fill="url(#slice-shading)" />
+
+                      {/* Selected slice golden illumination overlay */}
+                      {isSelected && (
+                        <path d={topWedgePath} fill="rgba(245, 165, 36, 0.2)" />
+                      )}
+
+                      {/* Radial Text 1: Movie Title along the Outer Rim (Like "VOLAR", "RECUERDOS" in image) */}
+                      <text
+                        x="300"
+                        y="34"
+                        textAnchor="middle"
+                        fill="#ffffff"
+                        fontSize="11"
+                        fontWeight="800"
+                        letterSpacing="0.18em"
+                        className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"
+                        style={{
+                          textTransform: 'uppercase',
+                          fontFamily: 'var(--font-inter), sans-serif',
+                        }}
+                      >
+                        {truncateTitle(item.title, 14)}
+                      </text>
+
+                      {/* Radial Text 2: Year & Rating along the Inner Rim (Like "ATADO", "DUELEN" in image) */}
+                      <text
+                        x="300"
+                        y="172"
+                        textAnchor="middle"
+                        fill={isSelected ? '#f5a524' : 'rgba(255,255,255,0.75)'}
+                        fontSize="9"
+                        fontWeight="700"
+                        letterSpacing="0.22em"
+                        className="drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]"
+                        style={{ textTransform: 'uppercase' }}
+                      >
+                        {item.year || '2024'} • ★ {item.vote_average ? item.vote_average.toFixed(1) : 'NR'}
+                      </text>
+                    </g>
+
+                    {/* Thin Slice Border / Seam between Sectors */}
+                    <path
+                      d={topWedgePath}
+                      fill="none"
+                      stroke={isSelected ? '#f5a524' : 'rgba(255, 255, 255, 0.22)'}
+                      strokeWidth={isSelected ? 3 : 1}
+                      className="transition-colors duration-200"
+                    />
+
+                    {/* Active Sector Accent Pip at the Outer Edge */}
+                    {isSelected && (
+                      <circle cx="300" cy="14" r="3" fill="#f5a524" filter="drop-shadow(0 0 4px #f5a524)" />
+                    )}
+                  </g>
+                );
+              })}
+
+              {/* Concentric Vinyl Grooves Overlay across all sectors */}
+              <circle
+                cx="300"
+                cy="300"
+                r="286"
+                fill="none"
+                stroke="rgba(255,255,255,0.06)"
+                strokeWidth="1"
+                pointerEvents="none"
+              />
+              <circle
+                cx="300"
+                cy="300"
+                r="240"
+                fill="none"
+                stroke="rgba(255,255,255,0.04)"
+                strokeWidth="1"
+                pointerEvents="none"
+              />
+              <circle
+                cx="300"
+                cy="300"
+                r="190"
+                fill="none"
+                stroke="rgba(255,255,255,0.04)"
+                strokeWidth="1"
+                pointerEvents="none"
+              />
+              <circle
+                cx="300"
+                cy="300"
+                r="150"
+                fill="none"
+                stroke="rgba(255,255,255,0.05)"
+                strokeWidth="1"
+                pointerEvents="none"
+              />
+
+              {/* Surface Sheen */}
+              <circle cx="300" cy="300" r="286" fill="url(#disc-sheen)" pointerEvents="none" />
+
+              {/* Center Stardust Vinyl Label Ring (Exactly like the dark center circle in reference image) */}
+              <circle
+                cx="300"
+                cy="300"
+                r="108"
+                fill="#07070b"
+                stroke="rgba(255,255,255,0.2)"
+                strokeWidth="2"
+              />
+              <circle
+                cx="300"
+                cy="300"
+                r="102"
+                fill="none"
+                stroke="rgba(255,255,255,0.08)"
+                strokeWidth="1"
+              />
+              <circle
+                cx="300"
+                cy="300"
+                r="95"
+                fill="none"
+                stroke="rgba(245,165,36,0.15)"
+                strokeWidth="1"
+              />
+            </svg>
+          </motion.div>
+
+          {/* Central Spindle Hub in the Center Hole (Non-rotating controls) */}
+          <div className="absolute left-1/2 top-1/2 z-20 flex h-[28%] w-[28%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-full border border-white/20 bg-[#07070b]/95 shadow-[inset_0_2px_12px_rgba(0,0,0,0.98),0_0_20px_rgba(0,0,0,0.85)] backdrop-blur-sm">
+            {/* Play/Pause Button */}
+            <button
+              type="button"
+              data-testid="cd-play-toggle-btn"
+              onClick={togglePlay}
+              aria-label={playing ? 'Stop rotation' : 'Start rotation'}
+              className="relative z-10 flex aspect-square h-[42%] cursor-pointer items-center justify-center rounded-full bg-[#f5a524] text-[#07070b] shadow-[0_0_22px_rgba(245,165,36,0.7)] transition-all hover:scale-110 active:scale-95 focus-visible:outline-none"
+              title={playing ? 'Pause rotation' : 'Start rotation'}
+            >
+              {playing ? (
+                <Square className="h-1/3 w-1/3 fill-current" />
+              ) : (
+                <Play className="h-1/3 w-1/3 fill-current translate-x-[7%]" />
+              )}
+            </button>
+
+            {/* Grooved Speed Dial Knob */}
+            <div
+              ref={knobRef}
+              role="slider"
+              tabIndex={0}
+              data-testid="cd-speed-toggle-btn"
+              aria-label={`Rotation speed ${speed.toFixed(2)}x`}
+              aria-valuemin={MIN_SPEED}
+              aria-valuemax={MAX_SPEED}
+              aria-valuenow={Number(speed.toFixed(2))}
+              onPointerDown={onKnobPointerDown}
+              onPointerMove={onKnobPointerMove}
+              onPointerUp={releaseKnob}
+              onPointerCancel={releaseKnob}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowUp' || event.key === 'ArrowRight')
+                  setSpeed((s) => clampSpeed(s + 0.25));
+                if (event.key === 'ArrowDown' || event.key === 'ArrowLeft')
+                  setSpeed((s) => clampSpeed(s - 0.25));
+              }}
+              style={{ touchAction: 'none' }}
+              className="relative aspect-square h-[23%] cursor-grab touch-none rounded-full border border-white/25 bg-[#12121a] shadow-[inset_0_1px_4px_rgba(0,0,0,0.9)] outline-none active:cursor-grabbing hover:border-[#f5a524]/60 transition-colors"
+            >
+              <span
+                aria-hidden
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background:
+                    'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.15) 0deg 2deg, transparent 2deg 10deg)',
+                }}
+              />
+              <span
+                aria-hidden
+                className="absolute inset-0"
+                style={{ transform: `rotate(${dialAngle}deg)` }}
+              >
+                <span className="absolute left-1/2 top-[8%] h-[38%] w-[2px] -translate-x-1/2 rounded-full bg-[#f5a524] shadow-[0_0_6px_rgba(245,165,36,0.9)]" />
+              </span>
+            </div>
+
+            {/* Speed readout */}
+            <span
+              data-testid="cd-speed-readout"
+              className="font-mono text-[9px] leading-none text-[#a1a1aa] font-medium"
+            >
+              {speed.toFixed(2)}×
             </span>
           </div>
+        </div>
 
-          {/* Speed readout */}
-          <span
-            data-testid="cd-speed-readout"
-            className="font-mono text-[9px] leading-none text-[#a1a1aa] font-medium"
+        {/* Featured Movie Typography Below the Disc (Matching Reference Image Album Art Layout) */}
+        <div className="mt-8 text-center max-w-md">
+          <h2
+            className="text-2xl md:text-3xl font-bold tracking-tight text-[#f4f4f5] leading-snug"
+            style={{ fontFamily: 'var(--font-display), serif' }}
           >
-            {speed.toFixed(2)}×
-          </span>
+            {spinning?.title}
+          </h2>
+          <p className="text-xs font-mono tracking-[0.25em] text-[#f5a524] mt-1.5 uppercase font-semibold">
+            {spinning?.year || '2024'} • ★ {spinning?.vote_average ? spinning.vote_average.toFixed(1) : 'NR'} • {spinning?.matchScore || 90}% Match
+          </p>
         </div>
       </div>
-    </div>
-  );
-}
-
-/**
- * Embedded poster slot integrated into the vinyl surface.
- * - Sits precisely along the circular outer ring.
- * - Uses exact 82px by 124px (2:3 portrait aspect ratio).
- * - Counter-rotates so artwork always remains upright while orbiting.
- * - Thin silver border + subtle dark gradient edge blend gives the look of artwork pressed into physical media.
- * - Selected poster scales up slightly with an amber glow.
- */
-function EmbeddedCdSlot({
-  item,
-  index,
-  step,
-  angle,
-  isSelected,
-  onSelect,
-}: {
-  item: CDResultItem;
-  index: number;
-  step: number;
-  angle: MotionValue<number>;
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  // Counter-rotation keeps the poster upright at all times
-  const counterRotate = useTransform(angle, (a: number) => -a);
-
-  // Position evenly around the 34% radius circle
-  const rad = ((index * step - 90) * Math.PI) / 180;
-  const left = 50 + 34 * Math.cos(rad);
-  const top = 50 + 34 * Math.sin(rad);
-
-  const posterUrl = item.poster_path ? `${IMG_BASE}/w185${item.poster_path}` : null;
-
-  return (
-    <div
-      className="absolute"
-      style={{
-        left: `${left}%`,
-        top: `${top}%`,
-        transform: 'translate(-50%, -50%)',
-      }}
-    >
-      <motion.div style={{ rotate: counterRotate }}>
-        <button
-          type="button"
-          onClick={onSelect}
-          data-testid={`cd-slot-${item.id}`}
-          aria-label={`${item.title} (${item.year})`}
-          className={`group relative block cursor-pointer transition-all duration-300 rounded-[8px] outline-none ${
-            isSelected
-              ? 'scale-110 z-20'
-              : 'scale-100 hover:scale-105 opacity-85 hover:opacity-100 z-10'
-          }`}
-        >
-          {/* Embedded Recessed Pocket / Slot in the Vinyl */}
-          <div
-            className={`movie-poster relative bg-[#09090e] transition-all duration-300 ${
-              isSelected
-                ? 'border border-[#f5a524] ring-2 ring-[#f5a524]/60 shadow-[0_0_26px_rgba(245,165,36,0.85)]'
-                : 'border border-white/25 hover:border-white/50 shadow-[0_6px_20px_rgba(0,0,0,0.9),inset_0_1px_3px_rgba(255,255,255,0.1)]'
-            }`}
-          >
-            {posterUrl ? (
-              <Image
-                src={posterUrl}
-                alt={item.title}
-                fill
-                sizes="82px"
-                loading="lazy"
-                className="movie-poster object-cover transition-transform duration-300 group-hover:scale-105"
-              />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center p-1.5 text-center bg-[#101018]">
-                <Sparkles className="w-4 h-4 text-[#f5a524] mb-1" />
-                <span className="text-[9px] font-bold text-[#f4f4f5] line-clamp-3 leading-tight">
-                  {item.title}
-                </span>
-              </div>
-            )}
-
-            {/* Subtle Gradient Blend Layer — makes artwork feel pressed into the CD lacquer */}
-            <div
-              className={`absolute inset-0 pointer-events-none transition-opacity duration-300 ${
-                isSelected
-                  ? 'bg-gradient-to-t from-black/40 via-transparent to-transparent'
-                  : 'bg-gradient-to-t from-black/60 via-transparent to-black/20 group-hover:opacity-40'
-              }`}
-            />
-
-            {/* Selected Active Badge (Subtle amber accent dot) */}
-            {isSelected && (
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#f5a524] shadow-[0_0_8px_#f5a524]" />
-            )}
-          </div>
-        </button>
-      </motion.div>
     </div>
   );
 }
