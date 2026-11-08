@@ -45,27 +45,37 @@ export interface FilmFinderCDProps {
 }
 
 const mod = (n: number, m: number) => ((n % m) + m) % m;
-const DEGREES_PER_MS = 0.02; // one revolution ≈ 18s at 1×
+const DEGREES_PER_MS = 0.016; // One smooth revolution ≈ 22s at 1×
 
 export default function FilmFinderCD({
   results,
   onAddToCompare,
   onViewDetails,
 }: FilmFinderCDProps) {
+  // Use up to 8 items for the 8 radial poster slots on the disc (45° intervals)
+  const displayMovies = React.useMemo(() => {
+    return results && results.length > 0 ? results.slice(0, 8) : [];
+  }, [results]);
+
+  const totalSlots = Math.max(displayMovies.length, 1);
+  const step = 360 / totalSlots;
+
   const reduced = useReducedMotion() ?? false;
   const angle = useMotionValue(0);
   const [playing, setPlaying] = useState(!reduced);
+  const [isHovered, setIsHovered] = useState(false);
   const [speed, setSpeed] = useState(1); // 0.25× to 3×
   const [spinningIdx, setSpinningIdx] = useState(0);
 
   const playingRef = useRef(playing && !reduced);
   playingRef.current = playing && !reduced;
+  const isHoveredRef = useRef(isHovered);
+  isHoveredRef.current = isHovered;
   const speedRef = useRef(speed);
   speedRef.current = speed;
   const idxRef = useRef(0);
-  const step = 360 / Math.max(results.length, 1);
 
-  // Speed dial — drag around the knob (or use arrow keys) to sweep 0.25×–3×.
+  // Speed dial pointer handling
   const MIN_SPEED = 0.25;
   const MAX_SPEED = 3;
   const clampSpeed = (s: number) => Math.min(MAX_SPEED, Math.max(MIN_SPEED, s));
@@ -104,10 +114,10 @@ export default function FilmFinderCD({
 
   const dialAngle = -135 + ((speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED)) * 270;
 
-  // Vinyl crackle ambience
+  // Vinyl crackle sound effect
   const crackleRef = useRef<VinylCrackle | null>(null);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
-  const [audioOn, setAudioOn] = useState(false); // default muted to prevent unwanted autoplay
+  const [audioOn, setAudioOn] = useState(false);
 
   const togglePlay = () => {
     crackleRef.current ??= new VinylCrackle();
@@ -124,20 +134,23 @@ export default function FilmFinderCD({
   useEffect(() => {
     const crackle = crackleRef.current;
     if (!crackle || !audioUnlocked) return;
-    if (playing && audioOn) {
+    if (playing && audioOn && !isHovered) {
       void crackle.unlockAndStart();
     } else {
       crackle.stop();
     }
-  }, [playing, audioOn, audioUnlocked]);
+  }, [playing, audioOn, audioUnlocked, isHovered]);
 
   useEffect(() => () => crackleRef.current?.dispose(), []);
 
+  // Frame animation: continuous slow rotation unless paused or hovered
   useAnimationFrame((_, delta) => {
-    if (!playingRef.current || results.length === 0) return;
+    if (!playingRef.current || isHoveredRef.current || displayMovies.length === 0) return;
     const next = mod(angle.get() + delta * DEGREES_PER_MS * speedRef.current, 360);
     angle.set(next);
-    const idx = mod(Math.round(-next / step), results.length); // poster under the top marker
+
+    // Track index currently positioned at the 12 o'clock marker (angle = 0)
+    const idx = mod(Math.round(-next / step), displayMovies.length);
     if (idx !== idxRef.current) {
       idxRef.current = idx;
       setSpinningIdx(idx);
@@ -145,29 +158,29 @@ export default function FilmFinderCD({
   });
 
   const stepTo = (deltaSteps: number) => {
-    if (results.length === 0) return;
+    if (displayMovies.length === 0) return;
     const next = mod(angle.get() + deltaSteps * step, 360);
     angle.set(next);
-    const idx = mod(Math.round(-next / step), results.length);
+    const idx = mod(Math.round(-next / step), displayMovies.length);
     idxRef.current = idx;
     setSpinningIdx(idx);
   };
 
   const selectItem = (index: number) => {
-    if (results.length === 0) return;
+    if (displayMovies.length === 0) return;
     const targetAngle = mod(-index * step, 360);
     angle.set(targetAngle);
     idxRef.current = index;
     setSpinningIdx(index);
   };
 
-  const spinning = results[spinningIdx] ?? results[0];
+  const spinning = displayMovies[spinningIdx] ?? displayMovies[0];
   const upcoming =
-    results.length > 0
-      ? [...results.slice(spinningIdx + 1), ...results.slice(0, spinningIdx + 1)]
+    displayMovies.length > 0
+      ? [...displayMovies.slice(spinningIdx + 1), ...displayMovies.slice(0, spinningIdx + 1)]
       : [];
 
-  if (!results || results.length === 0) {
+  if (displayMovies.length === 0) {
     return (
       <div className="h-[400px] flex items-center justify-center text-[#a1a1aa]">
         No recommendations to spin.
@@ -176,8 +189,8 @@ export default function FilmFinderCD({
   }
 
   return (
-    <div className="w-full flex flex-col items-center gap-10 py-4 lg:flex-row lg:items-center lg:justify-center lg:gap-14">
-      {/* Now-spinning HUD Card */}
+    <div className="w-full flex flex-col items-center gap-10 py-6 lg:flex-row lg:items-center lg:justify-center lg:gap-14">
+      {/* Left/Sidebar: Now-spinning HUD Card */}
       <div
         data-testid="cd-now-spinning-card"
         className="order-2 w-full max-w-sm rounded-2xl glass p-6 border border-white/10 shadow-2xl lg:order-1 flex flex-col"
@@ -185,10 +198,10 @@ export default function FilmFinderCD({
         <p className="flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] font-semibold text-[#f5a524]">
           <span
             className={`inline-block h-2 w-2 rounded-full bg-[#f5a524] ${
-              playing ? 'animate-pulse' : 'opacity-40'
+              playing && !isHovered ? 'animate-pulse' : 'opacity-40'
             }`}
           />
-          {playing ? 'Now spinning' : 'Paused · laser parked'}
+          {isHovered ? 'Paused on hover' : playing ? 'Now spinning' : 'Paused · laser parked'}
         </p>
 
         <h3
@@ -218,7 +231,7 @@ export default function FilmFinderCD({
         </div>
 
         {/* AI reason quote */}
-        <p className="mt-3 text-xs italic text-[#f4f4f5]/80 bg-white/5 border border-white/5 rounded-xl p-3">
+        <p className="mt-3 text-xs italic text-[#f4f4f5]/85 bg-white/5 border border-white/5 rounded-xl p-3 leading-relaxed">
           "{spinning?.reason || 'Recommended match based on your preferences.'}"
         </p>
 
@@ -230,7 +243,7 @@ export default function FilmFinderCD({
           <div className="mt-2 overflow-hidden w-full">
             <div
               className="animate-marquee flex w-max gap-6"
-              style={{ animationPlayState: playing ? 'running' : 'paused' }}
+              style={{ animationPlayState: playing && !isHovered ? 'running' : 'paused' }}
             >
               {[...upcoming, ...upcoming].map((m, i) => (
                 <span
@@ -312,79 +325,100 @@ export default function FilmFinderCD({
         </div>
       </div>
 
-      {/* Giant Rotating CD Turntable */}
-      <div className="relative order-1 aspect-square w-[min(540px,86vw)] lg:order-2 shrink-0 select-none">
-        {/* Laser pickup marker, fixed at 12 o'clock */}
-        <div className="absolute left-1/2 top-[-16px] z-30 flex -translate-x-1/2 flex-col items-center pointer-events-none">
-          <span className="h-3 w-3 rounded-full bg-[#f5a524] shadow-[0_0_16px_6px_rgba(245,165,36,0.85)] animate-pulse" />
-          <span className="h-10 w-0.5 bg-gradient-to-b from-[#f5a524] to-transparent" />
+      {/* Right: Giant Physical Media CD Turntable with Embedded Radial Posters */}
+      <div
+        className="relative order-1 aspect-square w-[min(580px,94vw)] lg:order-2 shrink-0 select-none"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {/* 12 o'clock Triangle Pointer (Matching the reference design) */}
+        <div className="absolute left-1/2 top-[-20px] z-30 flex -translate-x-1/2 flex-col items-center pointer-events-none">
+          <svg
+            width="20"
+            height="18"
+            viewBox="0 0 20 18"
+            fill="none"
+            className="drop-shadow-[0_0_10px_rgba(255,255,255,0.85)] filter"
+          >
+            <path d="M10 18L0.47372 1.5L19.5263 1.5L10 18Z" fill="#f4f4f5" />
+          </svg>
+          <span className="h-5 w-[2px] bg-gradient-to-b from-white/90 to-transparent" />
         </div>
 
-        {/* Ambient radial glow under the turntable */}
+        {/* Ambient radial amber glow around the platter */}
         <div
           aria-hidden
-          className="absolute -inset-6 rounded-full pointer-events-none bg-[radial-gradient(closest-side,rgba(245,165,36,0.12),transparent)]"
+          className="absolute -inset-8 rounded-full pointer-events-none bg-[radial-gradient(closest-side,rgba(245,165,36,0.15),transparent)]"
         />
 
-        {/* Rotating Disc */}
+        {/* Rotating Dark Graphite CD Disc */}
         <motion.div
           data-testid="rotating-cd-disc"
           style={{ rotate: angle }}
-          className="absolute inset-0 overflow-hidden rounded-full bg-[#0a0a10] shadow-[0_30px_90px_rgba(0,0,0,0.95)] ring-1 ring-white/15"
+          className="absolute inset-0 overflow-hidden rounded-full bg-[#0a0a10] shadow-[0_30px_90px_rgba(0,0,0,0.98)] ring-1 ring-white/20 border-4 border-[#181822]"
         >
-          {/* Micro-grooves */}
+          {/* Subtle Concentric Vinyl Micro-Grooves */}
           <div
             className="absolute inset-0 rounded-full pointer-events-none"
             style={{
               background:
-                'repeating-radial-gradient(circle at 50% 50%, transparent 0, transparent 4px, rgba(255,255,255,0.025) 5px, transparent 6px)',
+                'repeating-radial-gradient(circle at 50% 50%, transparent 0, transparent 3px, rgba(255,255,255,0.025) 4px, transparent 5px)',
             }}
           />
 
-          {/* Prismatic sheen — iridescent reflection */}
+          {/* Holographic Prismatic Reflection Sheen */}
           <div
             aria-hidden
-            className="animate-sheen absolute inset-0 rounded-full opacity-40 mix-blend-screen pointer-events-none"
+            className="animate-sheen absolute inset-0 rounded-full opacity-35 mix-blend-screen pointer-events-none"
             style={{
               background:
-                'conic-gradient(from 0deg at 50% 50%, rgba(245,165,36,0.2) 0deg, rgba(0,255,255,0.15) 60deg, rgba(245,165,36,0.15) 120deg, rgba(168,85,247,0.15) 180deg, rgba(245,165,36,0.2) 240deg, rgba(236,72,153,0.15) 300deg, rgba(245,165,36,0.2) 360deg)',
+                'conic-gradient(from 0deg at 50% 50%, rgba(245,165,36,0.2) 0deg, rgba(56,189,248,0.18) 60deg, rgba(236,72,153,0.16) 120deg, rgba(168,85,247,0.18) 180deg, rgba(245,165,36,0.2) 240deg, rgba(45,212,191,0.18) 300deg, rgba(245,165,36,0.2) 360deg)',
             }}
           />
 
-          {/* Film Sleeves Placed Around Circle */}
-          {results.map((item, i) => (
-            <CdSleeve
+          {/* Outer Ring Channel Bed (recessed groove track underneath the posters) */}
+          <div className="absolute inset-[8%] rounded-full border border-white/10 pointer-events-none shadow-[inset_0_2px_12px_rgba(0,0,0,0.8)]" />
+
+          {/* 8 Radial Embedded Poster Slots */}
+          {displayMovies.map((item, i) => (
+            <EmbeddedCdSlot
               key={item.id}
               item={item}
               index={i}
               step={step}
               angle={angle}
+              isSelected={spinningIdx === i}
               onSelect={() => selectItem(i)}
             />
           ))}
 
-          {/* Center vinyl label ring */}
-          <div className="absolute left-1/2 top-1/2 h-[34%] w-[34%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-[#08080c] pointer-events-none shadow-inner" />
+          {/* Inner Ring Separator between posters and spindle */}
+          <div className="absolute inset-[33%] rounded-full border border-white/15 bg-gradient-to-b from-[#101018] to-[#07070b] pointer-events-none shadow-inner" />
+          <div className="absolute inset-[36%] rounded-full border border-white/10 pointer-events-none" />
         </motion.div>
 
-        {/* Center Hub — Non-rotating controls in the spindle hole */}
-        <div className="absolute left-1/2 top-1/2 z-20 flex h-[22%] w-[22%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-full border border-white/20 bg-[#08080c] shadow-[inset_0_2px_12px_rgba(0,0,0,0.95)]">
-          {/* Play/Pause Button */}
+        {/* Central Spindle Hole & Center Hub (Non-rotating) */}
+        <div className="absolute left-1/2 top-1/2 z-20 flex h-[28%] w-[28%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-full border-2 border-white/20 bg-[#07070b] shadow-[inset_0_3px_15px_rgba(0,0,0,0.98),0_0_25px_rgba(0,0,0,0.8)]">
+          {/* Subtle concentric spindle rings */}
+          <div className="absolute inset-2 rounded-full border border-white/10 pointer-events-none" />
+
+          {/* Center Glowing Yellow/Amber Play/Pause Button */}
           <button
             type="button"
             data-testid="cd-play-toggle-btn"
             onClick={togglePlay}
             aria-label={playing ? 'Stop rotation' : 'Start rotation'}
-            className="flex aspect-square h-[42%] cursor-pointer items-center justify-center rounded-full bg-[#f5a524] text-[#07070b] shadow-[0_0_18px_rgba(245,165,36,0.6)] transition-transform hover:scale-110 focus-visible:outline-none"
+            className="relative z-10 flex aspect-square h-[42%] cursor-pointer items-center justify-center rounded-full bg-[#f5a524] text-[#07070b] shadow-[0_0_22px_rgba(245,165,36,0.7)] transition-all hover:scale-110 active:scale-95 focus-visible:outline-none"
+            title={playing ? 'Pause disc' : 'Spin disc'}
           >
             {playing ? (
               <Square className="h-1/3 w-1/3 fill-current" />
             ) : (
-              <Play className="h-1/3 w-1/3 fill-current translate-x-[8%]" />
+              <Play className="h-1/3 w-1/3 fill-current translate-x-[7%]" />
             )}
           </button>
 
-          {/* Grooved Speed Dial */}
+          {/* Grooved Speed Dial Knob */}
           <div
             ref={knobRef}
             role="slider"
@@ -405,7 +439,7 @@ export default function FilmFinderCD({
                 setSpeed((s) => clampSpeed(s - 0.25));
             }}
             style={{ touchAction: 'none' }}
-            className="relative aspect-square h-[26%] cursor-grab touch-none rounded-full border border-white/25 bg-[#13131c] shadow-[inset_0_1px_3px_rgba(0,0,0,0.8)] outline-none active:cursor-grabbing"
+            className="relative aspect-square h-[24%] cursor-grab touch-none rounded-full border border-white/25 bg-[#12121a] shadow-[inset_0_1px_4px_rgba(0,0,0,0.9)] outline-none active:cursor-grabbing hover:border-[#f5a524]/60 transition-colors"
           >
             <span
               aria-hidden
@@ -424,9 +458,10 @@ export default function FilmFinderCD({
             </span>
           </div>
 
+          {/* Speed readout */}
           <span
             data-testid="cd-speed-readout"
-            className="font-mono text-[9px] leading-none text-[#a1a1aa]"
+            className="font-mono text-[9px] leading-none text-[#a1a1aa] font-medium"
           >
             {speed.toFixed(2)}×
           </span>
@@ -436,29 +471,42 @@ export default function FilmFinderCD({
   );
 }
 
-function CdSleeve({
+/**
+ * Embedded poster slot integrated into the vinyl surface.
+ * - Sits precisely along the circular outer ring.
+ * - Uses exact 82px by 124px (2:3 portrait aspect ratio).
+ * - Counter-rotates so artwork always remains upright while orbiting.
+ * - Thin silver border + subtle dark gradient edge blend gives the look of artwork pressed into physical media.
+ * - Selected poster scales up slightly with an amber glow.
+ */
+function EmbeddedCdSlot({
   item,
   index,
   step,
   angle,
+  isSelected,
   onSelect,
 }: {
   item: CDResultItem;
   index: number;
   step: number;
   angle: MotionValue<number>;
+  isSelected: boolean;
   onSelect: () => void;
 }) {
+  // Counter-rotation keeps the poster upright at all times
   const counterRotate = useTransform(angle, (a: number) => -a);
+
+  // Position evenly around the 34% radius circle
   const rad = ((index * step - 90) * Math.PI) / 180;
-  const left = 50 + 36 * Math.cos(rad);
-  const top = 50 + 36 * Math.sin(rad);
+  const left = 50 + 34 * Math.cos(rad);
+  const top = 50 + 34 * Math.sin(rad);
 
   const posterUrl = item.poster_path ? `${IMG_BASE}/w185${item.poster_path}` : null;
 
   return (
     <div
-      className="absolute w-[13%]"
+      className="absolute"
       style={{
         left: `${left}%`,
         top: `${top}%`,
@@ -469,27 +517,54 @@ function CdSleeve({
         <button
           type="button"
           onClick={onSelect}
-          data-testid={`cd-sleeve-${item.id}`}
+          data-testid={`cd-slot-${item.id}`}
           aria-label={`${item.title} (${item.year})`}
-          className="group relative block aspect-[2/3] w-full cursor-pointer rounded-[4px] overflow-hidden shadow-[0_6px_18px_rgba(0,0,0,0.85)] ring-1 ring-white/25 hover:ring-[#f5a524] transition-all bg-[#0d0d14]"
+          className={`group relative block cursor-pointer transition-all duration-300 rounded-[8px] outline-none ${
+            isSelected
+              ? 'scale-110 z-20'
+              : 'scale-100 hover:scale-105 opacity-85 hover:opacity-100 z-10'
+          }`}
         >
-          {posterUrl ? (
-            <Image
-              src={posterUrl}
-              alt={item.title}
-              fill
-              sizes="80px"
-              loading="lazy"
-              className="object-cover transition-transform duration-200 group-hover:scale-105"
+          {/* Embedded Recessed Pocket / Slot in the Vinyl */}
+          <div
+            className={`movie-poster relative bg-[#09090e] transition-all duration-300 ${
+              isSelected
+                ? 'border border-[#f5a524] ring-2 ring-[#f5a524]/60 shadow-[0_0_26px_rgba(245,165,36,0.85)]'
+                : 'border border-white/25 hover:border-white/50 shadow-[0_6px_20px_rgba(0,0,0,0.9),inset_0_1px_3px_rgba(255,255,255,0.1)]'
+            }`}
+          >
+            {posterUrl ? (
+              <Image
+                src={posterUrl}
+                alt={item.title}
+                fill
+                sizes="82px"
+                loading="lazy"
+                className="movie-poster object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center p-1.5 text-center bg-[#101018]">
+                <Sparkles className="w-4 h-4 text-[#f5a524] mb-1" />
+                <span className="text-[9px] font-bold text-[#f4f4f5] line-clamp-3 leading-tight">
+                  {item.title}
+                </span>
+              </div>
+            )}
+
+            {/* Subtle Gradient Blend Layer — makes artwork feel pressed into the CD lacquer */}
+            <div
+              className={`absolute inset-0 pointer-events-none transition-opacity duration-300 ${
+                isSelected
+                  ? 'bg-gradient-to-t from-black/40 via-transparent to-transparent'
+                  : 'bg-gradient-to-t from-black/60 via-transparent to-black/20 group-hover:opacity-40'
+              }`}
             />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center p-1 text-center bg-[#151520]">
-              <Sparkles className="w-3 h-3 text-[#f5a524] mb-1" />
-              <span className="text-[8px] font-bold text-[#f4f4f5] line-clamp-2 leading-tight">
-                {item.title}
-              </span>
-            </div>
-          )}
+
+            {/* Selected Active Badge (Subtle amber accent dot) */}
+            {isSelected && (
+              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#f5a524] shadow-[0_0_8px_#f5a524]" />
+            )}
+          </div>
         </button>
       </motion.div>
     </div>

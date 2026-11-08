@@ -88,6 +88,16 @@ body {
   animation: sheen 30s linear infinite;
 }
 
+.movie-poster {
+  width: 82px;
+  height: 124px;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
