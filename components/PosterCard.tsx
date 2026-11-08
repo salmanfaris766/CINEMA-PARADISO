@@ -27,7 +27,7 @@ export default function PosterCard({
   release_date,
 }: PosterCardProps) {
   const addItem = useCompareStore((state) => state.addItem);
-  const imageUrl = `${IMG_BASE}/w500${poster_path}`;
+  const imageUrl = `${IMG_BASE}/w342${poster_path}`;
   const targetHref = `/${media_type}/${id}`;
 
   const formattedRelease = React.useMemo(() => {
@@ -56,7 +56,8 @@ export default function PosterCard({
         alt={title}
         fill
         loading="lazy"
-        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
+        quality={75}
+        sizes="200px"
         className="object-cover transition-transform duration-250 ease-out group-hover:scale-105"
       />
 

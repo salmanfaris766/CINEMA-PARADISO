@@ -37,7 +37,7 @@ export default function Hero({ items }: HeroProps) {
       {/* 5 Crossfading Backdrop Layers */}
       {slides.map((item, idx) => {
         const bgPath = item.backdrop_path || item.poster_path;
-        const bgUrl = `${IMG_BASE}/w1280${bgPath}`;
+        const bgUrl = `${IMG_BASE}/w780${bgPath}`;
         const isActive = idx === activeIndex;
 
         return (

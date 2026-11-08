@@ -61,6 +61,14 @@ export default function RootLayout({
             <CompareTray />
           </SmoothScroll>
         </Providers>
+
+        {process.env.NODE_ENV === 'development' && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `window.addEventListener('load', () => console.log('[Perf] Page loaded in: ' + Math.round(performance.now()) + 'ms'));`,
+            }}
+          />
+        )}
       </body>
     </html>
   );

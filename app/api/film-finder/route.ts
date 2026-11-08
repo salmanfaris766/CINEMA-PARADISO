@@ -268,7 +268,7 @@ Select and rank the top 10 matches. Return only JSON.`;
               },
             ],
           }),
-          signal: AbortSignal.timeout(14000),
+          signal: AbortSignal.timeout(5000),
         });
 
         if (res.ok) {
@@ -292,7 +292,7 @@ Select and rank the top 10 matches. Return only JSON.`;
             response_format: { type: 'json_object' },
             max_tokens: 1000,
           }),
-          signal: AbortSignal.timeout(14000),
+          signal: AbortSignal.timeout(5000),
         });
 
         if (res.ok) {

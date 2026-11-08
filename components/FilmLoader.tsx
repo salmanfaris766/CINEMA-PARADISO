@@ -62,3 +62,4 @@ export default function FilmLoader({ label = 'Loading...', size = 'md' }: FilmLo
     </div>
   );
 }
+

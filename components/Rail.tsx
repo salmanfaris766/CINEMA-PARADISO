@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import PosterCard, { PosterCardProps } from './PosterCard';
 import { PosterSkeleton } from './Skeletons';
@@ -15,6 +14,7 @@ export default function Rail({ title, items }: RailProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
@@ -30,13 +30,19 @@ export default function Rail({ title, items }: RailProps) {
           observer.disconnect();
         }
       },
-      { rootMargin: '200px' }
+      { rootMargin: '300px' }
     );
 
     observer.observe(railRef.current);
 
     return () => observer.disconnect();
   }, []);
+
+  // Show all posters when user scrolls horizontally
+  const onContainerScroll = () => {
+    checkScroll();
+    if (!showAll) setShowAll(true);
+  };
 
   // Update edge masks and navigation arrows
   const checkScroll = () => {
@@ -55,11 +61,11 @@ export default function Rail({ title, items }: RailProps) {
     if (!el) return;
 
     checkScroll();
-    el.addEventListener('scroll', checkScroll, { passive: true });
+    el.addEventListener('scroll', onContainerScroll, { passive: true });
     window.addEventListener('resize', checkScroll);
 
     return () => {
-      el.removeEventListener('scroll', checkScroll);
+      el.removeEventListener('scroll', onContainerScroll);
       window.removeEventListener('resize', checkScroll);
     };
   }, [isVisible, items]);
@@ -74,11 +80,8 @@ export default function Rail({ title, items }: RailProps) {
 
   return (
     <div ref={railRef} className="w-full">
-      <motion.section
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.3 }}
+      <section
+        onMouseEnter={() => setShowAll(true)}
         className="relative mb-12 group/rail"
       >
         {/* Header Row */}
@@ -119,22 +122,21 @@ export default function Rail({ title, items }: RailProps) {
         <div className="relative w-full">
           {/* Left Edge Mask */}
           <div
-            className={`absolute left-0 top-0 bottom-4 w-[60px] pointer-events-none z-10 bg-gradient-to-r from-[#07070b] to-transparent transition-opacity duration-300 ${
-              canScrollLeft ? 'opacity-100' : 'opacity-0'
-            }`}
+            className={`absolute left-0 top-0 bottom-4 w-[60px] pointer-events-none z-10 bg-gradient-to-r from-[#07070b] to-transparent transition-opacity duration-300 ${canScrollLeft ? 'opacity-100' : 'opacity-0'
+              }`}
           />
 
           {/* Right Edge Mask */}
           <div
-            className={`absolute right-0 top-0 bottom-4 w-[60px] pointer-events-none z-10 bg-gradient-to-l from-[#07070b] to-transparent transition-opacity duration-300 ${
-              canScrollRight ? 'opacity-100' : 'opacity-0'
-            }`}
+            className={`absolute right-0 top-0 bottom-4 w-[60px] pointer-events-none z-10 bg-gradient-to-l from-[#07070b] to-transparent transition-opacity duration-300 ${canScrollRight ? 'opacity-100' : 'opacity-0'
+              }`}
           />
 
           {/* Horizontal Scroll Shelf */}
           <div
             ref={containerRef}
             data-lenis-prevent
+            onScroll={onContainerScroll}
             className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-4"
             style={{
               scrollbarWidth: 'none',
@@ -145,8 +147,9 @@ export default function Rail({ title, items }: RailProps) {
               // Skeletons placeholder before entering viewport
               [...Array(6)].map((_, i) => <PosterSkeleton key={i} />)
             ) : items.length > 0 ? (
-              items.map((item) => (
-                <div key={item.id} className="snap-start shrink-0 w-[200px]">
+              // Render first 8 immediately; reveal rest on scroll/hover
+              items.slice(0, showAll ? items.length : 8).map((item) => (
+                <div key={item.id} className="snap-start shrink-0 w-[180px]">
                   <PosterCard {...item} />
                 </div>
               ))
@@ -157,7 +160,7 @@ export default function Rail({ title, items }: RailProps) {
             )}
           </div>
         </div>
-      </motion.section>
+      </section>
     </div>
   );
 }

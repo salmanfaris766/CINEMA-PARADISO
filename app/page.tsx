@@ -1,9 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
 import { ArrowRight, RotateCcw } from 'lucide-react';
 import Hero from '@/components/Hero';
 import Rail from '@/components/Rail';
@@ -15,22 +14,42 @@ interface RailsApiResponse {
   rails: RailData[];
 }
 
-async function fetchRails(): Promise<RailsApiResponse> {
-  const res = await fetch('/api/rails');
-  if (!res.ok) {
-    throw new Error(`Failed to load rails: ${res.status}`);
-  }
-  return res.json();
-}
-
 export default function HomePage() {
-  const { data, isLoading, isError, refetch } = useQuery<RailsApiResponse>({
-    queryKey: ['rails'],
-    queryFn: fetchRails,
-    staleTime: 60 * 1000,
+  // Fetch primary rails immediately (Trending, Coming Soon, Mystery, Tamil Blockbusters)
+  const {
+    data: primaryData,
+    isLoading: primaryLoading,
+    isError: primaryError,
+    refetch,
+  } = useQuery<RailsApiResponse>({
+    queryKey: ['rails-primary'],
+    queryFn: async () => {
+      const res = await fetch('/api/rails/primary');
+      if (!res.ok) throw new Error(`Failed to load primary rails: ${res.status}`);
+      return res.json();
+    },
+    staleTime: 300 * 1000, // 5 minutes
   });
 
-  if (isLoading) {
+  // Fetch secondary rails lazily after first paint — delayed 600ms to let above-fold render first
+  const [secondaryEnabled, setSecondaryEnabled] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSecondaryEnabled(true), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const { data: secondaryData } = useQuery<RailsApiResponse>({
+    queryKey: ['rails-secondary'],
+    queryFn: async () => {
+      const res = await fetch('/api/rails/secondary');
+      if (!res.ok) throw new Error(`Failed to load secondary rails: ${res.status}`);
+      return res.json();
+    },
+    staleTime: 3600 * 1000, // 1 hour
+    enabled: secondaryEnabled,
+  });
+
+  if (primaryLoading) {
     return (
       <div className="w-full pb-20">
         <HeroSkeleton />
@@ -41,7 +60,7 @@ export default function HomePage() {
     );
   }
 
-  if (isError || !data?.rails || data.rails.length === 0) {
+  if (primaryError || !primaryData?.rails || primaryData.rails.length === 0) {
     return (
       <div className="w-full min-h-[60vh] flex flex-col items-center justify-center text-center p-8">
         <div className="glass surface p-8 max-w-md w-full flex flex-col items-center gap-4">
@@ -67,29 +86,20 @@ export default function HomePage() {
     );
   }
 
-  const rails = data.rails;
-  const heroItems = rails[0]?.items || [];
+  const primaryRails = primaryData.rails;
+  const secondaryRails = secondaryData?.rails || [];
+  const allRails = [...primaryRails, ...secondaryRails];
+  const heroItems = primaryRails[0]?.items || [];
 
   return (
     <PageTransition className="w-full pb-16">
-      {/* Hero Banner (First rail's top items) */}
+      {/* Hero Banner (First primary rail's top items) */}
       {heroItems.length > 0 && <Hero items={heroItems} />}
 
-      {/* 7 Horizontal Rails with Staggered Fade-in */}
+      {/* Primary Rails (immediate) */}
       <div className="flex flex-col gap-2">
-        {rails.map((rail, index) => (
-          <motion.div
-            key={rail.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              delay: index * 0.1,
-              duration: 0.5,
-              ease: 'easeOut',
-            }}
-          >
-            <Rail title={rail.title} items={rail.items} />
-          </motion.div>
+        {allRails.map((rail) => (
+          <Rail key={rail.title} title={rail.title} items={rail.items} />
         ))}
       </div>
 

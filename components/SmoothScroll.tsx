@@ -15,6 +15,17 @@ export default function SmoothScroll({ children }: SmoothScrollProps) {
       return;
     }
 
+    // Disable Lenis on mobile devices or low-RAM devices (< 4GB)
+    const isMobile = window.innerWidth < 768;
+    const isLowMemory =
+      typeof navigator !== 'undefined' &&
+      'deviceMemory' in navigator &&
+      (navigator as any).deviceMemory < 4;
+
+    if (isMobile || isLowMemory) {
+      return;
+    }
+
     const lenis = new Lenis({
       gestureOrientation: 'vertical',
       smoothWheel: true,
